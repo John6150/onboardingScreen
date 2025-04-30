@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -13,7 +15,8 @@ import 'package:onboardingscreen/routes.dart';
 import 'package:onboardingscreen/variables.dart';
 import 'package:onboardingscreen/variables.dart';
 
-void main() {
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   runApp(ProviderScope(child: const MyApp()));
 }
 
@@ -172,14 +175,87 @@ class _MyHomePageState extends ConsumerState<MyHomePage> {
 // }
 
 Future<Map<String, dynamic>> result() async {
-  http.Response response;
-  response = await http.get(Uri.parse('https://dummyjson.com/products'));
-  Map<String, dynamic> res = jsonDecode(response.body);
-  for (var element in res['products']) {
-    // setstate({});
-    count.add(element);
+  final dio = Dio();
+  final _axios = axios();
+
+  // http.Response response;
+  Response response;
+
+  try {
+    response = await _axios.get('/products');
+    print(response);
+    Map<String, dynamic> res = jsonDecode(response.data);
+    for (var element in res['products']) {
+      // setstate({});
+      count.add(element);
+    }
+    print(count);
+    print(res);
+    return {'data': res['products']};
+  } on DioException catch (e) {
+    return {'status': 'failed', 'message': e};
+  } catch (e) {
+    return {'error': e};
   }
-  print(count);
-  print(res);
-  return {'data': res['products']};
+}
+
+Dio axios([token]) {
+  final dio = Dio();
+  String _baseURL = dotenv.env['BASEURL'] ?? '';
+  print(_baseURL);
+  dio.options.baseUrl = _baseURL;
+  // dio.options.baseUrl = 'https://dummyjson.com';
+  dio.options.connectTimeout = (Duration(seconds: 5));
+  dio.options.sendTimeout = Duration(seconds: 5);
+
+  dio.options.extra = {'id': ''};
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onRequest: (RequestOptions options, RequestInterceptorHandler handler) {
+        dio.options.headers['accept'] = 'Application/Json';
+        dio.options.headers['Authorization'] = 'Bearer $token';
+
+        if (dio.options.extra['id'] != null) {
+          return handler.next(options);
+        } else {
+          return handler.reject(
+            DioException(
+              requestOptions: options,
+              error: 'Sorry the id you are sending is null',
+              type: DioExceptionType.cancel,
+            ),
+          );
+        }
+      },
+      onResponse: (Response response, ResponseInterceptorHandler handler) {
+        Map<String, dynamic> res = {};
+
+        switch (response.data['status']) {
+          case 'success':
+            res['statuscode'] = 200;
+            res['data'] = response.data;
+            break;
+          case 'failed':
+            res['statuscode'] = 400;
+          default:
+            return handler.next(response);
+        }
+        return handler.next(res as Response);
+      },
+      onError: (DioException error, ErrorInterceptorHandler handler) {
+        switch (error.type) {
+          case DioExceptionType.badResponse:
+            'sorry, there is a bad response';
+            break;
+          case DioExceptionType.connectionTimeout:
+            'Sorry, slow network';
+          case DioExceptionType.unknown:
+            'Fatal error occurred';
+          default:
+        }
+      },
+    ),
+  );
+
+  return dio;
 }
