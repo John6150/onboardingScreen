@@ -4,6 +4,12 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Do you want to give access to this app?</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Do you want to give access to this app?</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Do you want to give access to this app?</string>
 	<key>CFBundleDisplayName</key>
 	<string>Onboardingscreen</string>
 	<key>CFBundleExecutable</key>
